@@ -1,4 +1,4 @@
- #!/usr/bin/env python
+#!/usr/bin/env python
 import scribus
 import csv
 import traceback
@@ -7,43 +7,50 @@ def write_log(msg):
     with open("scribus_debug.log", "a") as f:
         f.write(msg + "\n")
 
-def find_language_index(csvFile, langCode):
-    with open(csvFile, newline='') as f:
+def find_language_index(csv_file, lang_code):
+    with open(csv_file, newline='') as f:
         reader = csv.reader(f)
         header = next(reader, [])
-        return header.index(langCode) if langCode in header else -1
+        return header.index(lang_code) if lang_code in header else -1
 
-def translateText(csvFile):
-    langCode = scribus.valueDialog("Localization Language", "Enter the language code:", "Default")
-    index = find_language_index(csvFile, langCode)
+def translate_text(csv_file):
+    lang_code = scribus.valueDialog("Localization Language", "Enter the language code:", "Default")
+    index = find_language_index(csv_file, lang_code)
+
+    if index == -1:
+        scribus.messageBox('Error', f'Language code "{lang_code}" not found in CSV.', icon=0, button1=1)
+        return
+
     translations = {}
-    with open(csvFile, newline='') as f:
+
+    with open(csv_file, newline='') as f:
         reader = csv.reader(f)
         next(reader, None)
         for row in reader:
-            translations[row[0]] = row[index] if len(row) >= 2 else ''
-    page = 1
-    pagenum = scribus.pageCount()
+            if len(row) > index:
+                translations[row[0]] = row[index].strip()
 
-    while (page <= pagenum):
+    for page in range(1, scribus.pageCount() + 1):
         scribus.gotoPage(page)
-        pageItems = scribus.getPageItems()
 
-        for item in pageItems:
-            # the name of the elment is the translation key
-            contents = item[0]
-            translation = translations[contents].strip()
-            scribus.setText(translation, item[0])
-        page += 1
+        for item in scribus.getPageItems():
+            item_name = item[0]
+            if item_name in translations:
+                # now follows the hack to retain text formatting
+                translated_text = translations[item_name]
+                l = scribus.getTextLength(item_name)
+                scribus.selectText(0, l, item_name)
+                scribus.deleteText(item_name)
+                scribus.insertText(translated_text, 0, item_name)
 
 if scribus.haveDoc():
-    csvFile = scribus.fileDialog('Open a translation CSV file', filter='CSV Files (*.csv);;All Files (*)')
+    csv_file = scribus.fileDialog('Open a translation CSV file', filter='CSV Files (*.csv);;All Files (*)')
+
     try:
-        if csvFile == '':
-            raise Exception
-        translateText(csvFile)
-    except Exception:
+        if not csv_file:
+            raise ValueError("No file selected.")
+        translate_text(csv_file)
+    except Exception as e:
         scribus.messageBox('Error', traceback.format_exc(), icon=0, button1=1)
 else:
     scribus.messageBox('Export Error', 'You need a Document open', icon=0, button1=1)
-
