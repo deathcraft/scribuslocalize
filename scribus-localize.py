@@ -39,9 +39,21 @@ def translate_text(csv_file):
                 # now follows the hack to retain text formatting
                 translated_text = translations[item_name]
                 l = scribus.getTextLength(item_name)
-                scribus.selectText(0, l, item_name)
-                scribus.deleteText(item_name)
-                scribus.insertText(translated_text, 0, item_name)
+
+                if lang_code == "ru": # bookvica hack
+                    scribus.insertText(translated_text[0], 0, item_name)
+                    scribus.selectText(1,1,item_name)
+                    scribus.deleteText(item_name)
+                    scribus.insertText(translated_text[1:], 2, item_name)
+                    scribus.selectText(1,1,item_name)
+                    scribus.deleteText(item_name)
+                    scribus.selectText(len(translated_text),l-2,item_name)
+                    scribus.deleteText(item_name)
+                else:
+                    scribus.selectText(0, l, item_name)
+                    scribus.deleteText(item_name)
+                    scribus.insertText(translated_text, 0, item_name)
+
 
 if scribus.haveDoc():
     csv_file = scribus.fileDialog('Open a translation CSV file', filter='CSV Files (*.csv);;All Files (*)')
